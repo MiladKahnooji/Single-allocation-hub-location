@@ -44,12 +44,12 @@ def load_matrix(path: str | Path) -> Matrix:
     if suffix == ".csv":
         rows = _read_csv(input_path)
     elif suffix == ".xlsx":
-        rows = _read_xlsx(input_path)
+        rows = _remove_column_index_header(_read_xlsx(input_path))
     else:
         raise MatrixValidationError(
             f"Unsupported matrix format for {input_path}: expected .csv or .xlsx"
         )
-    return _validate_rows(_remove_column_index_header(rows), input_path)
+    return _validate_rows(rows, input_path)
 
 
 def load_matrix_pair(flow_path: str | Path, distance_path: str | Path) -> MatrixPair:
