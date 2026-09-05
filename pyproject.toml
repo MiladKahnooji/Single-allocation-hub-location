@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "single-allocation-hub-location"
+version = "0.1.0"
+description = "Validated matrix loading for the single-allocation hub location project."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["openpyxl>=3.1,<4"]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<9"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/single_allocation_hub_location"]
