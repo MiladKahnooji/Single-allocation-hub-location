@@ -11,6 +11,7 @@ from .experiments import RunConfig, load_run_configs, run_batch, run_experiment
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run selected hub-location configurations")
     parser.add_argument("--config", help="JSON file containing a runs list")
+    parser.add_argument("--output-dir", help="write CSV, JSON, and PNG results here")
     parser.add_argument("--dataset", choices=("CAB25", "AP100", "AP150", "AP200"))
     parser.add_argument("--p", type=int)
     parser.add_argument("--alpha", type=float)
@@ -23,6 +24,10 @@ def main() -> None:
 
     if args.config:
         results = run_batch(load_run_configs(args.config))
+        if args.output_dir:
+            from .reporting import write_results
+
+            write_results(results, args.output_dir)
         print(json.dumps([result.to_dict() for result in results]))
         return
     missing = [name for name in ("dataset", "p", "alpha", "beta") if getattr(args, name) is None]
@@ -40,4 +45,8 @@ def main() -> None:
             method=args.method,
         )
     )
+    if args.output_dir:
+        from .reporting import write_results
+
+        write_results([result], args.output_dir)
     print(json.dumps(result.to_dict()))
