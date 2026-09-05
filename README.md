@@ -1,8 +1,8 @@
 # Single-allocation hub location
 
 This repository provides validated matrix loading, reproducible demand scenarios,
-and a risk-averse single-allocation model for small instances and CAB25 smoke
-solves. It does not include large-instance heuristics or experiment grids.
+and risk-averse exact or heuristic single-allocation runs. It does not
+automatically execute an experiment grid.
 
 ## Setup and test
 
@@ -55,17 +55,24 @@ scenarios = generate_flow_scenarios(load_matrix("data/raw/wij_CAB25.xlsx"), seed
 print(scenarios.flows.shape, scenarios.probabilities.sum())
 ```
 
-## Run CAB25
+## Run selected configurations
 
 The objective is the probability-weighted conditional beta-mean: the worst
 `beta` fraction of scenario costs, equivalent to discrete `CVaR_(1-beta)`:
 `min_eta eta + sum(q_s * max(C_s - eta, 0)) / beta`. Smaller positive `beta`
 values are more risk-averse, while `beta=1` is the expected scenario cost.
-Run a bounded solve with the open-source CBC solver:
+Run one selected configuration:
 
 ```bash
-salh-solve --p 3 --alpha 0.75 --beta 0.9 --scenarios 2 --seed 7 --time-limit 10
+salh-solve --dataset CAB25 --p 3 --alpha 0.5 --beta 0.8 --scenarios 2 --seed 7 --time-limit 10 --method auto
 ```
 
-The JSON output includes the actual solver status and whether optimality was
-proven within the time limit.
+Or run a small JSON file containing `{"runs": [{...}, {...}]}`:
+
+```bash
+salh-solve --config runs.json
+```
+
+Exact time-limited runs report CBC's actual status and may be non-optimal.
+Heuristic results always set `proven_optimal` to false. Results print to standard
+output; the runner does not create result files.
