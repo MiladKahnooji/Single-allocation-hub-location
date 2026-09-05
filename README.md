@@ -45,3 +45,12 @@ print(matrices.size)
 
 Generated results belong in `outputs/`; input files in `data/raw/` are not
 modified by the loader.
+
+## Generate demand scenarios
+
+```python
+from single_allocation_hub_location import generate_flow_scenarios, load_matrix
+
+scenarios = generate_flow_scenarios(load_matrix("data/raw/wij_CAB25.xlsx"), seed=7)
+print(scenarios.flows.shape, scenarios.probabilities.sum())
+```
