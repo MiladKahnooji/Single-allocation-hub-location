@@ -8,10 +8,11 @@ import numpy as np
 def conditional_beta_mean(
     costs: np.ndarray, probabilities: np.ndarray, beta: float
 ) -> float:
-    """Return the upper-tail conditional beta-mean (discrete CVaR).
+    """Return the worst-tail conditional beta-mean (discrete CVaR at ``1-beta``).
 
-    The calculation is ``min_eta eta + E[(cost - eta)+] / (1 - beta)``.
-    This handles a probability atom at the beta quantile fractionally.
+    ``beta`` is the probability mass included from the worst scenarios. The
+    calculation is ``min_eta eta + E[(cost - eta)+] / beta`` and handles a
+    probability atom at the tail boundary fractionally.
     """
     values = np.asarray(costs, dtype=float)
     weights = np.asarray(probabilities, dtype=float)
@@ -23,12 +24,14 @@ def conditional_beta_mean(
         raise ValueError("probabilities must be finite and nonnegative")
     if not np.isclose(weights.sum(), 1.0):
         raise ValueError("probabilities must sum to 1")
-    if not 0 <= beta < 1:
-        raise ValueError("beta must satisfy 0 <= beta < 1")
+    if not 0 < beta <= 1:
+        raise ValueError("beta must satisfy 0 < beta <= 1")
 
     order = np.argsort(values, kind="stable")
     ordered_costs = values[order]
     cumulative = np.cumsum(weights[order])
-    quantile_index = min(int(np.searchsorted(cumulative, beta, side="left")), values.size - 1)
+    quantile_index = min(
+        int(np.searchsorted(cumulative, 1.0 - beta, side="left")), values.size - 1
+    )
     eta = ordered_costs[quantile_index]
-    return float(eta + np.dot(weights, np.maximum(values - eta, 0.0)) / (1.0 - beta))
+    return float(eta + np.dot(weights, np.maximum(values - eta, 0.0)) / beta)

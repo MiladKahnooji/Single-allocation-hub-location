@@ -100,7 +100,7 @@ def build_hub_model(
         problem += excess[s] >= scenario_costs[s] - eta, f"risk_tail_{s}"
 
     problem += eta + pulp.lpSum(
-        float(weights[s] / (1.0 - beta)) * excess[s] for s in scenarios
+        float(weights[s] / beta) * excess[s] for s in scenarios
     )
     return BuiltHubModel(
         problem=problem,
@@ -142,6 +142,6 @@ def _validated_inputs(
         raise ValueError("p must be an integer between 1 and the number of nodes")
     if not np.isfinite(alpha) or alpha < 0:
         raise ValueError("alpha must be finite and nonnegative")
-    if not 0 <= beta < 1:
-        raise ValueError("beta must satisfy 0 <= beta < 1")
+    if not 0 < beta <= 1:
+        raise ValueError("beta must satisfy 0 < beta <= 1")
     return distances.copy(), flows.copy(), weights.copy()

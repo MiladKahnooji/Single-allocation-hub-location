@@ -57,8 +57,10 @@ print(scenarios.flows.shape, scenarios.probabilities.sum())
 
 ## Run CAB25
 
-The objective is the probability-weighted upper-tail conditional beta-mean
-(discrete CVaR): `min_eta eta + sum(q_s * max(C_s - eta, 0)) / (1 - beta)`.
+The objective is the probability-weighted conditional beta-mean: the worst
+`beta` fraction of scenario costs, equivalent to discrete `CVaR_(1-beta)`:
+`min_eta eta + sum(q_s * max(C_s - eta, 0)) / beta`. Smaller positive `beta`
+values are more risk-averse, while `beta=1` is the expected scenario cost.
 Run a bounded solve with the open-source CBC solver:
 
 ```bash
