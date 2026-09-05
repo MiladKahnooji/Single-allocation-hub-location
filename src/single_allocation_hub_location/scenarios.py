@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+_MAX_ZERO_TOTAL_RETRIES = 3
+
 
 @dataclass(frozen=True)
 class FlowScenarios:
@@ -21,8 +23,8 @@ def generate_flow_scenarios(
     """Generate normalized Poisson flow scenarios from a base flow matrix.
 
     Node multipliers are sampled independently for every scenario using a local
-    ``default_rng``. If a Poisson draw has zero total flow, the normalized base
-    flow is used for that scenario so every returned scenario remains valid.
+    ``default_rng``. A zero-total Poisson draw is retried a bounded number of
+    times before generation fails clearly.
     """
     if isinstance(scenario_count, bool) or not isinstance(scenario_count, (int, np.integer)):
         raise ValueError("scenario_count must be a positive integer")
@@ -40,13 +42,20 @@ def generate_flow_scenarios(
 
     rng = np.random.default_rng(seed)
     size = base.shape[0]
-    normalized_base = base / total
     flows = np.empty((scenario_count, size, size), dtype=float)
     for index in range(scenario_count):
-        multipliers = rng.uniform(0.5, 1.5, size=size)
-        sampled = rng.poisson(base * multipliers[:, None] * multipliers[None, :])
-        sampled_total = sampled.sum()
-        flows[index] = normalized_base if sampled_total == 0 else sampled / sampled_total
+        for _ in range(_MAX_ZERO_TOTAL_RETRIES + 1):
+            multipliers = rng.uniform(0.5, 1.5, size=size)
+            sampled = rng.poisson(base * multipliers[:, None] * multipliers[None, :])
+            sampled_total = sampled.sum()
+            if sampled_total > 0:
+                flows[index] = sampled / sampled_total
+                break
+        else:
+            raise RuntimeError(
+                f"scenario {index} had zero total flow after "
+                f"{_MAX_ZERO_TOTAL_RETRIES + 1} attempts"
+            )
 
     probabilities = np.full(scenario_count, 1.0 / scenario_count, dtype=float)
     return FlowScenarios(flows=flows, probabilities=probabilities)
