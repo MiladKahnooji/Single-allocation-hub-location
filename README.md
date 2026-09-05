@@ -1,8 +1,8 @@
 # Single-allocation hub location
 
-This repository currently provides the project setup and validated input loading
-for Issue #1. It does not yet include scenario generation, optimization models,
-heuristics, or visualizations.
+This repository provides validated matrix loading, reproducible demand scenarios,
+and a risk-averse single-allocation model for small instances and CAB25 smoke
+solves. It does not include large-instance heuristics or experiment grids.
 
 ## Setup and test
 
@@ -54,3 +54,18 @@ from single_allocation_hub_location import generate_flow_scenarios, load_matrix
 scenarios = generate_flow_scenarios(load_matrix("data/raw/wij_CAB25.xlsx"), seed=7)
 print(scenarios.flows.shape, scenarios.probabilities.sum())
 ```
+
+## Run CAB25
+
+The objective is the probability-weighted conditional beta-mean: the worst
+`beta` fraction of scenario costs, equivalent to discrete `CVaR_(1-beta)`:
+`min_eta eta + sum(q_s * max(C_s - eta, 0)) / beta`. Smaller positive `beta`
+values are more risk-averse, while `beta=1` is the expected scenario cost.
+Run a bounded solve with the open-source CBC solver:
+
+```bash
+salh-solve --p 3 --alpha 0.75 --beta 0.9 --scenarios 2 --seed 7 --time-limit 10
+```
+
+The JSON output includes the actual solver status and whether optimality was
+proven within the time limit.
