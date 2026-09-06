@@ -3,6 +3,8 @@ from itertools import combinations, product
 import numpy as np
 import pytest
 
+import single_allocation_hub_location.evaluation as evaluation_module
+
 from single_allocation_hub_location import (
     build_hub_model,
     conditional_beta_mean,
@@ -51,6 +53,31 @@ def test_smaller_beta_cannot_reduce_risk_value() -> None:
     ]
 
     assert values == sorted(values)
+
+
+def test_risk_evaluator_passes_all_100_probabilities(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    flows = np.zeros((100, 2, 2))
+    flows[:, 0, 1] = 1.0
+    probabilities = np.arange(1.0, 101.0)
+    probabilities /= probabilities.sum()
+    received: dict[str, np.ndarray] = {}
+
+    def capture(costs: np.ndarray, weights: np.ndarray, beta: float) -> float:
+        received["costs"] = costs
+        received["weights"] = weights
+        return beta
+
+    monkeypatch.setattr(evaluation_module, "conditional_beta_mean", capture)
+
+    value = evaluation_module.evaluate_risk_objective(
+        (0, 0), np.array([[0.0, 1.0], [1.0, 0.0]]), flows, probabilities, 0.5, 0.8
+    )
+
+    assert value == pytest.approx(0.8)
+    assert received["costs"].shape == (100,)
+    assert np.array_equal(received["weights"], probabilities)
 
 
 @pytest.mark.parametrize("beta", [0.0, -0.1, 1.1])

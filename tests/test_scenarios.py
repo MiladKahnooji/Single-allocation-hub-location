@@ -4,10 +4,14 @@ import numpy as np
 import pytest
 
 import single_allocation_hub_location.scenarios as scenario_module
-from single_allocation_hub_location import generate_flow_scenarios, load_matrix
+from single_allocation_hub_location import (
+    generate_flow_scenarios,
+    load_matrix,
+    validate_flow_scenarios,
+)
 
 
-BASE = np.array([[0.0, 2.0], [3.0, 1.0]])
+BASE = np.array([[0.0, 2.0], [3.0, 0.0]])
 
 
 def test_generation_is_reproducible_and_normalized() -> None:
@@ -20,6 +24,18 @@ def test_generation_is_reproducible_and_normalized() -> None:
     assert np.allclose(first.flows.sum(axis=(1, 2)), 1.0)
     assert np.allclose(first.probabilities, 0.2)
     assert first.probabilities.sum() == pytest.approx(1.0)
+
+
+def test_default_100_scenarios_are_reproducible_and_valid() -> None:
+    first = generate_flow_scenarios(BASE, seed=21)
+    second = generate_flow_scenarios(BASE, seed=21)
+
+    assert first.flows.shape == (100, 2, 2)
+    assert first.probabilities.shape == (100,)
+    assert np.array_equal(first.flows, second.flows)
+    assert np.array_equal(first.probabilities, second.probabilities)
+    validate_flow_scenarios(first.flows, first.probabilities, node_count=2)
+    assert np.all(first.probabilities == pytest.approx(0.01))
 
 
 def test_different_seeds_produce_different_scenarios() -> None:
@@ -45,6 +61,24 @@ def test_invalid_scenario_count_is_rejected(scenario_count: object) -> None:
 def test_zero_demand_is_rejected() -> None:
     with pytest.raises(ValueError, match="positive total demand"):
         generate_flow_scenarios(np.zeros((2, 2)))
+
+
+@pytest.mark.parametrize(
+    ("flows", "probabilities", "message"),
+    [
+        (np.ones((2, 2)), np.array([1.0]), "shape"),
+        (np.array([[[0.0, np.nan], [1.0, 0.0]]]), np.array([1.0]), "finite"),
+        (np.array([[[0.0, -1.0], [2.0, 0.0]]]), np.array([1.0]), "nonnegative"),
+        (np.array([[[0.5, 0.5], [0.0, 0.0]]]), np.array([1.0]), "zero diagonal"),
+        (np.array([[[0.0, 0.5], [0.0, 0.0]]]), np.array([1.0]), "sum to 1"),
+        (np.array([[[0.0, 1.0], [0.0, 0.0]]]), np.array([0.5]), "sum to 1"),
+    ],
+)
+def test_scenario_validation_rejects_invalid_values(
+    flows: np.ndarray, probabilities: np.ndarray, message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        validate_flow_scenarios(flows, probabilities)
 
 
 def test_repeated_zero_total_draws_raise_clear_error(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -85,3 +119,10 @@ def test_supplied_demand_dataset_smoke(filename: str, size: int) -> None:
 
     assert scenarios.flows.shape == (2, size, size)
     assert np.allclose(scenarios.flows.sum(axis=(1, 2)), 1.0)
+
+
+def test_cab25_100_scenario_smoke() -> None:
+    flow = load_matrix(Path("data/raw/wij_CAB25.xlsx"))
+    scenarios = generate_flow_scenarios(flow, scenario_count=100, seed=11)
+
+    validate_flow_scenarios(scenarios.flows, scenarios.probabilities, node_count=25)
