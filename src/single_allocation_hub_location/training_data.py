@@ -219,6 +219,8 @@ def build_hub_feature_data(
             raise RuntimeError(
                 f"target label solver did not return a feasible solution: {solution.status}"
             )
+        if solution.objective is None or not np.isfinite(solution.objective):
+            raise RuntimeError("target label solver did not return a finite objective")
         selections[list(solution.hubs)] += 1
         target_runs.append(
             {
@@ -228,6 +230,7 @@ def build_hub_feature_data(
                 "status": solution.status,
                 "hubs": solution.hubs,
                 "proven_optimal": solution.proven_optimal,
+                "objective": solution.objective,
             }
         )
         if target_p == p and target_alpha == alpha and primary_solution is None:

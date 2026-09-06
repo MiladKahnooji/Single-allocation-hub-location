@@ -134,6 +134,17 @@ def test_hub_scores_equal_selection_frequency_over_target_grid() -> None:
     assert len(target_runs) == 4
     assert np.array_equal(data.hub_scores, counts / 4)
     assert [run["seed"] for run in target_runs] == [13, 14, 15, 16]
+    for run in target_runs:
+        assert set(run) == {
+            "p",
+            "alpha",
+            "seed",
+            "status",
+            "hubs",
+            "proven_optimal",
+            "objective",
+        }
+        assert np.isfinite(run["objective"])
 
 
 def test_tiny_exact_labels_are_marked_proven_optimal() -> None:
