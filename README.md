@@ -71,3 +71,21 @@ map is produced because coordinates are unavailable.
 This is a coding implementation of the requested model and experiments, not a
 publication-grade reproduction of every paper result. It does not run the full
 parameter grid automatically.
+
+## Hub-ranking inputs
+
+`generate_synthetic_hub_data` creates small seeded Euclidean instances and
+labels their hubs with the existing exact solver (up to 8 nodes) or seeded
+heuristic (the practical default for 25 nodes). `build_hub_feature_data` creates
+outgoing-demand and incoming-demand graphs by retaining the largest arcs until
+they cover fraction `p_w` of the respective total. Its spatial graph links each
+node to its nearest `ceil(p_c * (n - 1))` other nodes. Features are the combined
+produced/attracted demand, total distance, distance to the demand-weighted
+center, and configurable equal-angle directional one-hot bins. Each feature
+column uses safe min-max normalization; constant columns become zero.
+
+Because the supplied CAB/AP matrices contain no geographic coordinates, their
+2D coordinates are deterministically reconstructed from the distance matrix by
+classical MDS after averaging negligible directional rounding differences.
+These coordinates are a thesis adaptation for feature creation, not original
+geographic coordinates.
