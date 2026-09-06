@@ -71,3 +71,33 @@ map is produced because coordinates are unavailable.
 This is a coding implementation of the requested model and experiments, not a
 publication-grade reproduction of every paper result. It does not run the full
 parameter grid automatically.
+
+## Hub-ranking inputs
+
+The paper-aligned input subset uses seeded bounded power-law populations and
+symmetric gravity demand proportional to `P_i * P_j / distance_ij^2`.
+Production and attraction graphs retain the largest outgoing or incoming arcs
+until they cover fraction `p_w` of the respective total, and store the original
+demand as edge weight: production row `i` stores selected `w_ij`, while
+attraction row `i` stores selected incoming `w_ji` at column `j`. The spatial
+graph selects each node's nearest
+`ceil(p_c * (n - 1))` neighbors, takes the deterministic union of those directed
+selections, and stores symmetric `1 / distance_ij` weights. Zero distances use
+a small positive denominator floor.
+
+Node features are combined produced/attracted demand, total distance, distance
+to the demand-weighted center, and 36 equal-angle directional one-hot bins by
+default. Each feature column uses safe min-max normalization; constant columns
+become zero. Continuous hub-ranking targets are each node's hub-selection
+frequency over a configurable `(p, alpha)` grid.
+
+The thesis adaptations are a reduced configurable training volume instead of
+the paper's large study, seeded heuristic target solutions for practical
+25-node instances, and deterministic coordinate reconstruction for supplied
+data. Tiny instances may use the existing exact solver for target generation.
+
+Because the supplied CAB/AP matrices contain no geographic coordinates, their
+2D coordinates are deterministically reconstructed from the distance matrix by
+classical MDS after averaging negligible directional rounding differences.
+These coordinates are a thesis adaptation for feature creation, not original
+geographic coordinates.
