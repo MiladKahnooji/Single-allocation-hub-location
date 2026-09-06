@@ -168,3 +168,46 @@ CPU-first defaults are 20 generated instances, 20% validation, hidden dimension
 patience 8, and seed 0. Checkpoints and generated training artifacts are ignored
 by Git. This is a lightweight thesis adaptation, not training at the paper's
 11,000-instance scale or a reproduction of its reported model accuracy.
+
+## GVNS and DL-GVNS comparisons
+
+The compact `salh-gvns` command compares a baseline variable-neighborhood
+search (GVNS) with a DLHr-guided GVNS (DL-GVNS). Install the optional CPU ML
+extra first as shown above. Both methods evaluate the same 100 seeded,
+explicitly weighted scenarios using the same conditional beta-mean and the
+same deterministic evaluation budget. Candidate solutions always have exactly
+`p` distinct hubs, assign every node to an open hub, and assign open hubs to
+themselves.
+
+Train a small synthetic-only ranker, then run one CAB25 comparison:
+
+```bash
+salh-gvns --train-ranker --output-dir outputs/gvns/cab25 --datasets CAB25 --seeds 7 --p 3 --alpha 0.5 --beta 0.5 --max-iterations 4 --max-evaluations 12
+```
+
+To reuse the saved checkpoint for the small four-dataset grid:
+
+```bash
+salh-gvns --ranker-checkpoint outputs/gvns/cab25/synthetic_ranker.pt --output-dir outputs/gvns/grid --datasets CAB25,AP100,AP150,AP200 --seeds 0,1 --p 3 --alpha 0.5 --beta 0.5 --max-iterations 4 --max-evaluations 12
+```
+
+GVNS starts from an independent seeded feasible solution and uses hub-swap,
+node-reassignment, and multi-swap shaking neighborhoods. DL-GVNS instead
+uses ranker scores for its initial hubs and deterministic hub-swap ordering;
+the neighborhoods and objective evaluator are otherwise shared. The primary
+fairness limit is `--max-evaluations`; `--time-limit`, when supplied, is an
+additional search budget. Higher scores win deterministic ties.
+
+Each ignored output directory contains `gvns_results.json` (complete paired
+candidates and run fields), `gvns_summary.csv` (mean objective/runtime and
+DL-GVNS win/tie/loss/improvement statistics),
+`gvns_objective_comparison.png`, and `gvns_runtime_comparison.png`. For this
+minimization objective, improvement is
+`100 * (GVNS objective - DL-GVNS objective) / GVNS objective`; negative values
+honestly mean DL-GVNS performed worse.
+
+This is a lightweight thesis adaptation, not a claim that DL-GVNS will beat
+GVNS on every run. Both methods are heuristics and are never proven optimal.
+CAB/AP evaluation matrices remain separate from the synthetic-only ranker
+training data. CBS, DL-CBS, Benders decomposition, the full paper grid, and
+publication-grade reproduction are out of scope.
