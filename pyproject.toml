@@ -17,6 +17,7 @@ dependencies = [
 
 [project.scripts]
 salh-solve = "single_allocation_hub_location.cli:main"
+salh-gvns = "single_allocation_hub_location.gvns_cli:main"
 
 [project.optional-dependencies]
 ml = ["torch>=2.4,<3"]

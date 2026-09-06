@@ -11,6 +11,7 @@ from .experiments import (
     select_method,
 )
 from .heuristic import solve_hub_heuristic
+from .gvns import GVNSConfig, GVNSResult, HubCandidate, solve_dl_gvns, solve_gvns, validate_candidate
 from .model import BuiltHubModel, build_hub_model
 from .risk import conditional_beta_mean
 from .scenarios import FlowScenarios, generate_flow_scenarios, validate_flow_scenarios
@@ -27,8 +28,11 @@ from .training_data import (
 __all__ = [
     "BuiltHubModel",
     "FlowScenarios",
+    "GVNSConfig",
+    "GVNSResult",
     "HubSolution",
     "HubFeatureData",
+    "HubCandidate",
     "MatrixPair",
     "MatrixValidationError",
     "RunConfig",
@@ -51,5 +55,8 @@ __all__ = [
     "select_method",
     "solve_hub_heuristic",
     "solve_hub_model",
+    "solve_dl_gvns",
+    "solve_gvns",
+    "validate_candidate",
     "validate_flow_scenarios",
 ]
