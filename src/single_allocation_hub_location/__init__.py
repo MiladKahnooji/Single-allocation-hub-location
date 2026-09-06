@@ -13,7 +13,7 @@ from .experiments import (
 from .heuristic import solve_hub_heuristic
 from .model import BuiltHubModel, build_hub_model
 from .risk import conditional_beta_mean
-from .scenarios import FlowScenarios, generate_flow_scenarios
+from .scenarios import FlowScenarios, generate_flow_scenarios, validate_flow_scenarios
 from .solution import HubSolution, solve_hub_model
 
 __all__ = [
@@ -37,4 +37,5 @@ __all__ = [
     "select_method",
     "solve_hub_heuristic",
     "solve_hub_model",
+    "validate_flow_scenarios",
 ]

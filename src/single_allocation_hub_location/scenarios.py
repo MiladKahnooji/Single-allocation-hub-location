@@ -47,6 +47,7 @@ def generate_flow_scenarios(
         for _ in range(_MAX_ZERO_TOTAL_RETRIES + 1):
             multipliers = rng.uniform(0.5, 1.5, size=size)
             sampled = rng.poisson(base * multipliers[:, None] * multipliers[None, :])
+            np.fill_diagonal(sampled, 0)
             sampled_total = sampled.sum()
             if sampled_total > 0:
                 flows[index] = sampled / sampled_total
@@ -58,4 +59,32 @@ def generate_flow_scenarios(
             )
 
     probabilities = np.full(scenario_count, 1.0 / scenario_count, dtype=float)
+    validate_flow_scenarios(flows, probabilities, node_count=size)
     return FlowScenarios(flows=flows, probabilities=probabilities)
+
+
+def validate_flow_scenarios(
+    flows: np.ndarray, probabilities: np.ndarray, node_count: int | None = None
+) -> None:
+    """Validate normalized square flow scenarios and their explicit weights."""
+    values = np.asarray(flows, dtype=float)
+    weights = np.asarray(probabilities, dtype=float)
+    if (
+        values.ndim != 3
+        or values.shape[0] == 0
+        or values.shape[1] != values.shape[2]
+        or (node_count is not None and values.shape[1:] != (node_count, node_count))
+    ):
+        raise ValueError("scenario flows must have shape (scenarios, nodes, nodes)")
+    if not np.isfinite(values).all() or (values < 0).any():
+        raise ValueError("scenario flows must contain finite, nonnegative values")
+    if not np.all(np.diagonal(values, axis1=1, axis2=2) == 0):
+        raise ValueError("scenario flows must have a zero diagonal")
+    if not np.allclose(values.sum(axis=(1, 2)), 1.0):
+        raise ValueError("each scenario flow matrix must sum to 1")
+    if weights.shape != (values.shape[0],):
+        raise ValueError("probabilities must match the scenario count")
+    if not np.isfinite(weights).all() or (weights < 0).any():
+        raise ValueError("probabilities must be finite and nonnegative")
+    if not np.isclose(weights.sum(), 1.0):
+        raise ValueError("probabilities must sum to 1")

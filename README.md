@@ -27,7 +27,7 @@ The unchanged inputs belong in `data/raw/`:
 One selected run:
 
 ```bash
-salh-solve --dataset CAB25 --p 3 --alpha 0.5 --beta 0.8 --scenarios 2 --seed 7 --time-limit 10 --method auto
+salh-solve --dataset CAB25 --p 3 --alpha 0.5 --beta 0.5 --scenarios 100 --seed 11 --time-limit 10 --method heuristic
 ```
 
 The committed four-dataset example batch:
@@ -47,6 +47,10 @@ worst-scenario probability fraction, scenario count controls sampled demand
 matrices, seed makes generation and heuristic search reproducible, and time
 limit is the exact-solver or heuristic-search budget (not total loading time).
 Method is `exact`, `heuristic`, or `auto`.
+
+The final stochastic run uses 100 independently sampled, normalized demand
+scenarios. Each has zero diagonal and explicit probability `0.01`; the seed
+reproduces both the scenario matrices and their probability vector.
 
 The probability-weighted conditional beta-mean is
 `eta + sum(q_s * max(C_s - eta, 0)) / beta`, for `0 < beta <= 1`, and is
