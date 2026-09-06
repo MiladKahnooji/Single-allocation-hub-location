@@ -74,15 +74,27 @@ parameter grid automatically.
 
 ## Hub-ranking inputs
 
-`generate_synthetic_hub_data` creates small seeded Euclidean instances and
-labels their hubs with the existing exact solver (up to 8 nodes) or seeded
-heuristic (the practical default for 25 nodes). `build_hub_feature_data` creates
-outgoing-demand and incoming-demand graphs by retaining the largest arcs until
-they cover fraction `p_w` of the respective total. Its spatial graph links each
-node to its nearest `ceil(p_c * (n - 1))` other nodes. Features are the combined
-produced/attracted demand, total distance, distance to the demand-weighted
-center, and configurable equal-angle directional one-hot bins. Each feature
-column uses safe min-max normalization; constant columns become zero.
+The paper-aligned input subset uses seeded bounded power-law populations and
+symmetric gravity demand proportional to `P_i * P_j / distance_ij^2`.
+Production and attraction graphs retain the largest outgoing or incoming arcs
+until they cover fraction `p_w` of the respective total, and store the original
+demand as edge weight: production row `i` stores selected `w_ij`, while
+attraction row `i` stores selected incoming `w_ji` at column `j`. The spatial
+graph selects each node's nearest
+`ceil(p_c * (n - 1))` neighbors, takes the deterministic union of those directed
+selections, and stores symmetric `1 / distance_ij` weights. Zero distances use
+a small positive denominator floor.
+
+Node features are combined produced/attracted demand, total distance, distance
+to the demand-weighted center, and 36 equal-angle directional one-hot bins by
+default. Each feature column uses safe min-max normalization; constant columns
+become zero. Continuous hub-ranking targets are each node's hub-selection
+frequency over a configurable `(p, alpha)` grid.
+
+The thesis adaptations are a reduced configurable training volume instead of
+the paper's large study, seeded heuristic target solutions for practical
+25-node instances, and deterministic coordinate reconstruction for supplied
+data. Tiny instances may use the existing exact solver for target generation.
 
 Because the supplied CAB/AP matrices contain no geographic coordinates, their
 2D coordinates are deterministically reconstructed from the distance matrix by
