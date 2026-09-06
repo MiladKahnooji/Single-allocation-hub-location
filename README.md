@@ -101,3 +101,70 @@ Because the supplied CAB/AP matrices contain no geographic coordinates, their
 classical MDS after averaging negligible directional rounding differences.
 These coordinates are a thesis adaptation for feature creation, not original
 geographic coordinates.
+
+## Lightweight hub ranker
+
+The optional ranker uses direct CPU PyTorch without a graph framework:
+
+```bash
+.venv/bin/python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+.venv/bin/python -m pip install -e '.[ml,test]'
+```
+
+Each weighted graph receives a self-loop and row normalization. All three graph
+views are aggregated at every layer, a compact GRU updates each node state, and
+jumping-knowledge concatenation preserves the input projection and every layer
+representation before decoding one score per node. Training uses only node
+pairs with different `hub_scores` targets.
+
+This Python entry point generates a small in-memory dataset, trains with early
+stopping, saves/reloads a checkpoint, and ranks the supplied CAB25 nodes:
+
+```python
+from pathlib import Path
+import numpy as np
+
+from single_allocation_hub_location import build_hub_feature_data, load_matrix_pair
+from single_allocation_hub_location.ranker import (
+    RankerTrainingConfig,
+    generate_ranker_dataset,
+    load_ranker_checkpoint,
+    rank_hubs,
+    train_ranker,
+)
+
+config = RankerTrainingConfig(
+    training_instance_count=8,
+    validation_fraction=0.25,
+    hidden_dimension=16,
+    message_passing_layers=2,
+    epochs=10,
+    learning_rate=0.001,
+    batch_size=4,
+    patience=3,
+    seed=7,
+)
+training_data = generate_ranker_dataset(config)
+result = train_ranker(training_data, config, "outputs/ranker/checkpoint.pt")
+model = load_ranker_checkpoint("outputs/ranker/checkpoint.pt")
+
+matrices = load_matrix_pair(
+    Path("data/raw/wij_CAB25.xlsx"), Path("data/raw/C-CAB25.csv")
+)
+cab25 = build_hub_feature_data(
+    np.asarray(matrices.distance),
+    np.asarray(matrices.flow),
+    p=3,
+    seed=7,
+    time_limit=0.05,
+)
+ranking = rank_hubs(model, cab25)
+print(result.pairwise_accuracy, result.top_p_recall)
+print(ranking.ranked_nodes[:3], ranking.scores)
+```
+
+CPU-first defaults are 20 generated instances, 20% validation, hidden dimension
+32, two message-passing layers, 50 epochs, learning rate `0.001`, batch size 4,
+patience 8, and seed 0. Checkpoints and generated training artifacts are ignored
+by Git. This is a lightweight thesis adaptation, not training at the paper's
+11,000-instance scale or a reproduction of its reported model accuracy.
