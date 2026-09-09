@@ -7,6 +7,8 @@ from dataclasses import dataclass
 import numpy as np
 import pulp
 
+from .risk import tail_scenario_count
+
 
 @dataclass(frozen=True)
 class BuiltHubModel:
@@ -121,9 +123,17 @@ def build_hub_model(
         )
         problem += excess[s] >= scenario_costs[s] - eta, f"risk_tail_{s}"
 
-    problem += eta + pulp.lpSum(
-        float(weights[s] / beta) * excess[s] for s in scenarios
-    )
+    if np.allclose(weights, 1.0 / scenario_count):
+        # The paper's finite equally likely scenario form: average the worst
+        # K = ceil(beta * S) scenario costs.  This remains meaningful when
+        # beta * S is not an integer.
+        tail_count = tail_scenario_count(scenario_count, beta)
+        problem += eta + pulp.lpSum(excess[s] for s in scenarios) / tail_count
+    else:
+        # Preserve the generalized explicit-probability conditional beta-mean.
+        problem += eta + pulp.lpSum(
+            float(weights[s] / beta) * excess[s] for s in scenarios
+        )
     return BuiltHubModel(
         problem=problem,
         assignment=assignment,

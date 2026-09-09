@@ -9,7 +9,7 @@ import pulp
 
 from .evaluation import evaluate_scenario_costs
 from .model import BuiltHubModel
-from .risk import conditional_beta_mean
+from .risk import conditional_beta_mean, equal_probability_beta_mean
 
 
 @dataclass(frozen=True)
@@ -58,7 +58,10 @@ def solve_hub_model(model: BuiltHubModel, time_limit: float | None = None) -> Hu
     costs = evaluate_scenario_costs(
         assignments, model.distance, model.scenario_flows, model.alpha
     )
-    objective = conditional_beta_mean(costs, model.probabilities, model.beta)
+    if np.allclose(model.probabilities, 1.0 / model.probabilities.size):
+        objective = equal_probability_beta_mean(costs, model.beta)
+    else:
+        objective = conditional_beta_mean(costs, model.probabilities, model.beta)
     return HubSolution(
         status=status,
         proven_optimal=proven_optimal,

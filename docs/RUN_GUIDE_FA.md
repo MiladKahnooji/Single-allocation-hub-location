@@ -2,7 +2,10 @@
 
 ## اجرای سریع دفترچه
 
-دفترچهٔ `notebooks/Single_Allocation_Hub_Location_Complete.ipynb` مستقل از
+در مخزن، دفترچه در مسیر
+`notebooks/Single_Allocation_Hub_Location_Complete.ipynb` قرار دارد. در فایل
+تحویلی ZIP، همین دفترچه در سطح بالای پوشهٔ تحویل و با نام
+`Single_Allocation_Hub_Location_Complete.ipynb` قرار دارد. دفترچه مستقل از
 بستهٔ `src/` است. در Google Colab آن را باز کنید، در صورت نیاز سلول اختیاری
 Google Drive را اجرا کنید، مقدار `DATA_DIR` را به پوشهٔ شامل `data/raw` تغییر
 دهید و سپس **Run all** را بزنید. مقدار پیش‌فرض فقط CAB25 را با ۱۰۰ سناریو و

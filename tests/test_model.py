@@ -116,8 +116,8 @@ def test_conditional_beta_mean_rejects_invalid_beta(beta: float) -> None:
 
 
 def test_exact_model_matches_brute_force() -> None:
-    expected_objective, expected_assignments = _brute_force(p=1, alpha=0.5, beta=0.25)
-    model = build_hub_model(DISTANCE, FLOWS, PROBABILITIES, p=1, alpha=0.5, beta=0.25)
+    expected_objective, expected_assignments = _brute_force(p=1, alpha=0.5, beta=0.5)
+    model = build_hub_model(DISTANCE, FLOWS, PROBABILITIES, p=1, alpha=0.5, beta=0.5)
     solution = solve_hub_model(model, time_limit=10)
 
     assert solution.status == "Optimal Solution Found"
@@ -128,6 +128,27 @@ def test_exact_model_matches_brute_force() -> None:
     assert len(solution.hubs) == 1
     assert all(solution.assignments.count(hub) >= 1 for hub in solution.hubs)
     assert all(assigned in solution.hubs for assigned in solution.assignments)
+
+
+def test_exact_equal_probability_model_uses_ceiling_tail_count() -> None:
+    flows = np.concatenate(
+        [
+            FLOWS,
+            np.array([[[0.0, 0.1, 0.3], [0.6, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
+        ]
+    )
+    probabilities = np.full(3, 1.0 / 3.0)
+    model = build_hub_model(DISTANCE, flows, probabilities, p=1, alpha=0.5, beta=0.5)
+    solution = solve_hub_model(model, time_limit=10)
+
+    # beta * S = 1.5, so the article's ceiling form averages the worst two.
+    assert tail_scenario_count(3, 0.5) == 2
+    expected = equal_probability_beta_mean(solution.scenario_costs, 0.5)
+    assert solution.objective == pytest.approx(expected)
+    assert model.problem.objective.value() == pytest.approx(expected)
+    assert solution.objective != pytest.approx(
+        conditional_beta_mean(solution.scenario_costs, probabilities, 0.5)
+    )
 
 
 def test_exact_model_is_deterministic() -> None:
