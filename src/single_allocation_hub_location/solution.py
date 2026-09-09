@@ -39,7 +39,9 @@ def solve_hub_model(model: BuiltHubModel, time_limit: float | None = None) -> Hu
     status = pulp.LpSolution[model.problem.sol_status]
     proven_optimal = model.problem.sol_status == pulp.LpSolutionOptimal
     size = model.distance.shape[0]
-    hubs = tuple(k for k in range(size) if (pulp.value(model.hub[k]) or 0.0) > 0.5)
+    hubs = tuple(
+        k for k in range(size) if (pulp.value(model.assignment[k, k]) or 0.0) > 0.5
+    )
     assignments = tuple(
         max(range(size), key=lambda k: pulp.value(model.assignment[i, k]) or 0.0)
         for i in range(size)

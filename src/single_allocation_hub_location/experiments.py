@@ -64,10 +64,10 @@ class RunResult:
 
 
 def select_method(dataset: str, scenario_count: int, requested: Method) -> str:
-    """Resolve auto conservatively; the exact formulation is only small-run practical."""
+    """Resolve auto to scalable search for supplied CAB/AP dataset runs."""
     if requested != "auto":
         return requested
-    return "exact" if dataset == "CAB25" and scenario_count <= 5 else "heuristic"
+    return "heuristic"
 
 
 def run_experiment(
@@ -83,7 +83,10 @@ def run_experiment(
         if method_used == "exact" and not _exact_is_practical(
             config.dataset, config.scenario_count
         ):
-            raise ValueError("exact method is limited to CAB25 with at most 5 scenarios")
+            raise ValueError(
+                "the exact binary route-selection model is only for tiny verification "
+                "instances; use heuristic or auto for supplied CAB/AP datasets"
+            )
 
         flow_name, distance_name = DATASETS[config.dataset]
         root = Path(data_root)
@@ -171,7 +174,7 @@ def load_run_configs(path: str | Path) -> list[RunConfig]:
 
 
 def _exact_is_practical(dataset: str, scenario_count: int) -> bool:
-    return dataset == "CAB25" and scenario_count <= 5
+    return False
 
 
 def _validate_config(config: RunConfig) -> None:

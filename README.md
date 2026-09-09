@@ -52,15 +52,25 @@ The final stochastic run uses 100 independently sampled, normalized demand
 scenarios. Each has zero diagonal and explicit probability `0.01`; the seed
 reproduces both the scenario matrices and their probability vector.
 
-The probability-weighted conditional beta-mean is
+The generalized probability-weighted conditional beta-mean is
 `eta + sum(q_s * max(C_s - eta, 0)) / beta`, for `0 < beta <= 1`, and is
 equivalent to `CVaR_(1-beta)`. Smaller beta values are more risk-averse;
-`beta=1` is expected cost.
+`beta=1` is expected cost. For the documented 100 equally likely scenarios,
+the article form sets `K = ceil(beta * S)` and averages the worst `K` scenario
+costs. When `beta * S` is integral, `q_s / beta = 1 / (beta * S) = 1 / K`, so
+the two forms coincide. For a non-integral value, the article's ceiling rule is
+reported separately from the generalized weighted tail measure, whose boundary
+atom can be fractional.
 
-`exact` uses PuLP/CBC and is restricted to practical CAB25 runs of at most five
-scenarios. A time-limited exact incumbent may not be proven optimal. `heuristic`
-uses seeded local improvement and never claims optimality. `auto` applies the
-exact practical limit and otherwise uses the heuristic.
+The article-aligned binary route-selection MILP is intentionally limited to
+tiny verification instances: it contains binary `z[i,k]` assignment variables
+and binary `X[s,i,j,k,m]` route-selection variables. `z[k,k]` is the hub-opening
+decision, `sum_k z[k,k] = p`, and `z[i,k] <= z[k,k]` allows assignments only to
+open hubs. Each OD/scenario route has `sum_{k,m} X[s,i,j,k,m] = 1` with binary
+product-link constraints to its origin and destination assignments. Use the
+seeded `heuristic` for CAB25/AP runs; it never claims optimality. `auto` selects
+the heuristic because the article-aligned binary route model is not practical
+for supplied instances.
 
 With `--output-dir`, `summary.csv` contains one compact row per run,
 `solutions.json` adds selected hubs and complete assignments, and
