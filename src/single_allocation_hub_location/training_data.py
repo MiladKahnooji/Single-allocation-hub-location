@@ -169,8 +169,8 @@ def build_hub_feature_data(
         raise ValueError("p must be between 1 and the number of nodes")
     if label_method not in {"exact", "heuristic"}:
         raise ValueError("label_method must be exact or heuristic")
-    if label_method == "exact" and size > 8:
-        raise ValueError("exact labels are limited to at most 8 nodes")
+    if label_method == "exact" and size > 6:
+        raise ValueError("exact labels are limited to at most 6 nodes")
 
     coords = (
         classical_mds(distances)

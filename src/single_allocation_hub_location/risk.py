@@ -5,6 +5,33 @@ from __future__ import annotations
 import numpy as np
 
 
+def tail_scenario_count(scenario_count: int, beta: float) -> int:
+    """Return the paper's finite equal-probability tail count ``ceil(beta * S)``."""
+    if isinstance(scenario_count, bool) or not isinstance(scenario_count, int) or scenario_count <= 0:
+        raise ValueError("scenario_count must be a positive integer")
+    if not 0 < beta <= 1:
+        raise ValueError("beta must satisfy 0 < beta <= 1")
+    return int(np.ceil(beta * scenario_count))
+
+
+def equal_probability_beta_mean(costs: np.ndarray, beta: float) -> float:
+    """Average the paper's worst ``ceil(beta * S)`` equally likely costs.
+
+    This is the finite-scenario article form.  When ``beta * S`` is an
+    integer, it equals :func:`conditional_beta_mean` with probabilities
+    ``1 / S``.  For a non-integer product, its ceiling rule deliberately
+    differs from the generalized weighted CVaR form, which admits a fractional
+    probability atom at the tail boundary.
+    """
+    values = np.asarray(costs, dtype=float)
+    if values.ndim != 1 or values.size == 0:
+        raise ValueError("costs must be a nonempty vector")
+    if not np.isfinite(values).all():
+        raise ValueError("costs must be finite")
+    count = tail_scenario_count(int(values.size), beta)
+    return float(np.mean(np.sort(values)[-count:]))
+
+
 def conditional_beta_mean(
     costs: np.ndarray, probabilities: np.ndarray, beta: float
 ) -> float:
