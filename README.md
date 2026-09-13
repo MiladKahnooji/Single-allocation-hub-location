@@ -216,8 +216,11 @@ minimization objective, improvement is
 `100 * (GVNS objective - DL-GVNS objective) / GVNS objective`; negative values
 honestly mean DL-GVNS performed worse.
 
-This is a lightweight thesis adaptation, not a claim that DL-GVNS will beat
-GVNS on every run. Both methods are heuristics and are never proven optimal.
-CAB/AP evaluation matrices remain separate from the synthetic-only ranker
-training data. CBS, DL-CBS, Benders decomposition, the full paper grid, and
-publication-grade reproduction are out of scope.
+This is a lightweight thesis adaptation, not a claim that DL-GVNS or DL-CBS
+will beat their baseline on every run. GVNS, CBS/RCBS, DL-GVNS and DL-CBS are
+heuristics and are never proven optimal. The Benders implementation reports a
+feasible incumbent, lower bound, upper bound, absolute gap `UB - LB`, and
+relative gap `(UB - LB) / max(|UB|, 1e-12)`; a bounded run is not an optimality
+claim. CAB/AP evaluation matrices remain separate from synthetic-only ranker
+training data. The full paper grid and publication-grade reproduction are out
+of scope.

@@ -135,5 +135,6 @@ No raw data, approved model/risk/scenario logic or unrelated files change. Every
 result declares its method class and proof status; exact target claims have a
 convergence record; all comparisons use identical stochastic inputs. Paper B's
 CBS/DL-CBS rules are followed only to the extent stated above; CBS variants,
-DL-CBS, Benders, and later experiments remain out of scope until implemented
-and tested against this specification.
+Benders, RCBS/DL-RCBS and their bounded comparison records are implemented
+and tested against this specification. Full article-scale experiments and
+additional CBS variants remain outside this compact delivery.
