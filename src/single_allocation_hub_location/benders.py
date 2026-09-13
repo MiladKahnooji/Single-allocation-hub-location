@@ -35,12 +35,25 @@ class BendersResult:
     proven_optimal: bool
     scenario_costs: tuple[float, ...] = ()
 
+    @property
+    def absolute_gap(self) -> float | None:
+        """Certified absolute gap: ``UB - LB`` when both bounds exist."""
+        return self.gap
+
+    @property
+    def relative_gap(self) -> float | None:
+        """Certified relative gap: ``(UB - LB) / max(|UB|, 1e-12)``."""
+        if self.gap is None or self.upper_bound is None:
+            return None
+        return float(self.gap / max(abs(self.upper_bound), 1e-12))
+
     def to_dict(self) -> dict[str, object]:
         candidate = self.candidate
         return {
             "method": "benders", "objective": self.objective,
             "lower_bound": self.lower_bound, "upper_bound": self.upper_bound,
             "gap": self.gap, "iterations": self.iterations,
+            "absolute_gap": self.absolute_gap, "relative_gap": self.relative_gap,
             "cut_count": self.cut_count, "lp_count": self.lp_count,
             "runtime": self.runtime, "status": self.status,
             "proven_optimal": self.proven_optimal,

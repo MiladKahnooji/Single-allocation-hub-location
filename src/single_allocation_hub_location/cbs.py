@@ -107,7 +107,7 @@ def solve_cbs(distance, demand, scenario_flows, probabilities, p, alpha, beta, *
             "status": "completed" if evaluations < max_evaluations else "budget_limited",
             "proven_optimal": False, "ranker_identity": "provided_scores" if scores is not None else None,
             "potential_hubs": list(info["potential_hubs"]), "clusters": {str(k): list(v) for k, v in info["clusters"].items()},
-            "cbs_variant": "RCBS"}
+            "cbs_variant": "RCBS", "search_path": "cbs_rcbs_clustered_hub_combination_enumeration"}
 
 
 def solve_dl_cbs(*args, scores, **kwargs):
