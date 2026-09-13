@@ -52,6 +52,11 @@ class GVNSResult:
     ranker_identity: str | None = None
 
     @property
+    def search_path(self) -> str:
+        """Expose the executed neighborhood family for comparison audit logs."""
+        return "gvns_shake_hub_swap_node_reassignment"
+
+    @property
     def proven_optimal(self) -> bool:
         return False
 
@@ -67,6 +72,7 @@ class GVNSResult:
             "status": self.status,
             "proven_optimal": False,
             "ranker_identity": self.ranker_identity,
+            "search_path": self.search_path,
         }
 
 

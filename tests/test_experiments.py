@@ -53,7 +53,7 @@ def test_heuristic_is_deterministic_feasible_and_evaluated() -> None:
 @pytest.mark.parametrize(
     ("dataset", "scenario_count", "expected"),
     [
-        ("CAB25", 5, "exact"),
+        ("CAB25", 5, "heuristic"),
         ("CAB25", 6, "heuristic"),
         ("AP100", 1, "heuristic"),
         ("AP150", 1, "heuristic"),

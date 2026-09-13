@@ -7,14 +7,16 @@ from dataclasses import dataclass
 import numpy as np
 import pulp
 
+from .risk import tail_scenario_count
+
 
 @dataclass(frozen=True)
 class BuiltHubModel:
     """A PuLP model and the variables needed to extract a solution."""
 
     problem: pulp.LpProblem
-    hub: dict[int, pulp.LpVariable]
     assignment: dict[tuple[int, int], pulp.LpVariable]
+    route_selection: dict[tuple[int, int, int, int, int], pulp.LpVariable]
     distance: np.ndarray
     scenario_flows: np.ndarray
     probabilities: np.ndarray
@@ -30,25 +32,38 @@ def build_hub_model(
     alpha: float,
     beta: float,
 ) -> BuiltHubModel:
-    """Build the single-allocation MILP with a conditional beta-mean objective."""
+    """Build the article-aligned binary-route MILP for tiny instances only.
+
+    ``assignment[k, k]`` is the hub-opening decision and ``assignment[i, k]``
+    is the first-stage single allocation.  ``route_selection[s, i, j, k, m]``
+    is binary and selects the unique route through assigned hubs ``k`` and
+    ``m`` for OD pair ``(i, j)`` in scenario ``s``.
+    """
     distances, flows, weights = _validated_inputs(
         distance, scenario_flows, probabilities, p, alpha, beta
     )
     scenario_count, size, _ = flows.shape
+    if size > 6:
+        raise ValueError(
+            "the binary route-selection exact model is limited to at most 6 nodes; "
+            "use a heuristic or GVNS/DL-GVNS for CAB/AP datasets"
+        )
     nodes = range(size)
     scenarios = range(scenario_count)
 
     problem = pulp.LpProblem("risk_averse_single_allocation_hub_location", pulp.LpMinimize)
-    hub = {k: problem.add_variable(f"hub_{k}", cat="Binary") for k in nodes}
     assignment = {
         (i, k): problem.add_variable(f"assign_{i}_{k}", cat="Binary")
         for i in nodes
         for k in nodes
     }
-    routed = {
-        (s, i, k, m): problem.add_variable(f"route_{s}_{i}_{k}_{m}", lowBound=0)
+    route_selection = {
+        (s, i, j, k, m): problem.add_variable(
+            f"route_select_{s}_{i}_{j}_{k}_{m}", cat="Binary"
+        )
         for s in scenarios
         for i in nodes
+        for j in nodes
         for k in nodes
         for m in nodes
     }
@@ -57,55 +72,72 @@ def build_hub_model(
         s: problem.add_variable(f"risk_excess_{s}", lowBound=0) for s in scenarios
     }
 
-    problem += pulp.lpSum(hub.values()) == p, "select_exactly_p_hubs"
+    problem += (
+        pulp.lpSum(assignment[k, k] for k in nodes) == p,
+        "select_exactly_p_hubs_from_assignment_diagonal",
+    )
     for i in nodes:
         problem += pulp.lpSum(assignment[i, k] for k in nodes) == 1, f"assign_node_{i}"
         for k in nodes:
-            problem += assignment[i, k] <= hub[k], f"assign_{i}_only_to_open_{k}"
-        problem += assignment[i, i] == hub[i], f"opened_hub_{i}_serves_itself"
+            problem += (
+                assignment[i, k] <= assignment[k, k],
+                f"assign_{i}_only_to_open_diagonal_{k}",
+            )
 
     scenario_costs: dict[int, pulp.LpAffineExpression] = {}
     for s in scenarios:
-        origin_totals = flows[s].sum(axis=1)
-        destination_totals = flows[s].sum(axis=0)
         for i in nodes:
-            for k in nodes:
+            for j in nodes:
                 problem += (
-                    pulp.lpSum(routed[s, i, k, m] for m in nodes)
-                    == float(origin_totals[i]) * assignment[i, k]
-                ), f"origin_flow_{s}_{i}_{k}"
-            for m in nodes:
-                problem += (
-                    pulp.lpSum(routed[s, i, k, m] for k in nodes)
-                    == pulp.lpSum(float(flows[s, i, j]) * assignment[j, m] for j in nodes)
-                ), f"destination_flow_{s}_{i}_{m}"
-
-        collection = pulp.lpSum(
-            float(origin_totals[i] * distances[i, k]) * assignment[i, k]
+                    pulp.lpSum(
+                        route_selection[s, i, j, k, m]
+                        for k in nodes
+                        for m in nodes
+                    )
+                    == 1,
+                    f"select_one_route_{s}_{i}_{j}",
+                )
+                for k in nodes:
+                    for m in nodes:
+                        selected_route = route_selection[s, i, j, k, m]
+                        problem += (
+                            selected_route <= assignment[i, k],
+                            f"route_origin_link_{s}_{i}_{j}_{k}_{m}",
+                        )
+                        problem += (
+                            selected_route <= assignment[j, m],
+                            f"route_destination_link_{s}_{i}_{j}_{k}_{m}",
+                        )
+                        problem += (
+                            selected_route >= assignment[i, k] + assignment[j, m] - 1,
+                            f"route_assignment_product_{s}_{i}_{j}_{k}_{m}",
+                        )
+        scenario_costs[s] = pulp.lpSum(
+            float(flows[s, i, j])
+            * (distances[i, k] + alpha * distances[k, m] + distances[m, j])
+            * route_selection[s, i, j, k, m]
             for i in nodes
-            for k in nodes
-        )
-        transfer = pulp.lpSum(
-            float(alpha * distances[k, m]) * routed[s, i, k, m]
-            for i in nodes
-            for k in nodes
-            for m in nodes
-        )
-        distribution = pulp.lpSum(
-            float(destination_totals[j] * distances[m, j]) * assignment[j, m]
             for j in nodes
+            for k in nodes
             for m in nodes
         )
-        scenario_costs[s] = collection + transfer + distribution
         problem += excess[s] >= scenario_costs[s] - eta, f"risk_tail_{s}"
 
-    problem += eta + pulp.lpSum(
-        float(weights[s] / beta) * excess[s] for s in scenarios
-    )
+    if np.allclose(weights, 1.0 / scenario_count):
+        # The paper's finite equally likely scenario form: average the worst
+        # K = ceil(beta * S) scenario costs.  This remains meaningful when
+        # beta * S is not an integer.
+        tail_count = tail_scenario_count(scenario_count, beta)
+        problem += eta + pulp.lpSum(excess[s] for s in scenarios) / tail_count
+    else:
+        # Preserve the generalized explicit-probability conditional beta-mean.
+        problem += eta + pulp.lpSum(
+            float(weights[s] / beta) * excess[s] for s in scenarios
+        )
     return BuiltHubModel(
         problem=problem,
-        hub=hub,
         assignment=assignment,
+        route_selection=route_selection,
         distance=distances,
         scenario_flows=flows,
         probabilities=weights,

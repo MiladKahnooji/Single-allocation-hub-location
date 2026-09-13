@@ -115,6 +115,34 @@ def run_paired_experiment(
     )
 
 
+def run_full_paired_experiment(config: PairedGVNSConfig, *, data_root="data/raw", ranker_checkpoint=None, rank_scores=None):
+    """Run the five-method comparison with one shared scenario bundle.
+
+    Benders is attempted only on its certified tiny scale; larger datasets are
+    returned as an explicit ``not_practical`` record rather than approximated.
+    """
+    from .benders import solve_benders
+    from .cbs import solve_cbs, solve_dl_cbs
+    baseline, guided = run_paired_experiment(config, data_root=data_root, ranker_checkpoint=ranker_checkpoint, rank_scores=rank_scores)
+    flow_name, distance_name = DATASETS[config.dataset]
+    matrices = load_matrix_pair(Path(data_root) / flow_name, Path(data_root) / distance_name)
+    scenarios = generate_flow_scenarios(matrices.flow, scenario_count=100, seed=config.scenario_seed)
+    demand = np.asarray(matrices.flow); d = np.asarray(matrices.distance)
+    scores = rank_scores
+    if scores is None and ranker_checkpoint is not None:
+        scores, identity = load_rank_scores(d, demand, ranker_checkpoint)
+    cbs = solve_cbs(d, demand, scenarios.flows, scenarios.probabilities, config.p, config.alpha, config.beta, max_evaluations=config.max_evaluations, method="cbs")
+    dlcbs = solve_dl_cbs(d, demand, scenarios.flows, scenarios.probabilities, config.p, config.alpha, config.beta, scores=scores, max_evaluations=config.max_evaluations)
+    # Benders uses the same immutable scenarios.  Its bound-producing master
+    # has an iteration/time budget rather than the heuristic evaluation budget.
+    br = solve_benders(
+        d, scenarios.flows, scenarios.probabilities, config.p, config.alpha,
+        config.beta, max_iterations=config.max_iterations, time_limit=config.time_limit,
+    )
+    extra = [br.to_dict()]
+    return [baseline.to_dict(), guided.to_dict(), {**cbs, "candidate": None, "hubs": list(cbs["candidate"].hubs), "assignments": list(cbs["candidate"].assignments)}, {**dlcbs, "candidate": None, "hubs": list(dlcbs["candidate"].hubs), "assignments": list(dlcbs["candidate"].assignments)}, *extra]
+
+
 def run_small_grid(
     *,
     datasets: Sequence[str] = ("CAB25", "AP100", "AP150", "AP200"),

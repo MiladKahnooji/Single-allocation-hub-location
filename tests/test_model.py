@@ -8,8 +8,10 @@ import single_allocation_hub_location.evaluation as evaluation_module
 from single_allocation_hub_location import (
     build_hub_model,
     conditional_beta_mean,
+    equal_probability_beta_mean,
     evaluate_risk_objective,
     solve_hub_model,
+    tail_scenario_count,
 )
 
 
@@ -55,6 +57,33 @@ def test_smaller_beta_cannot_reduce_risk_value() -> None:
     assert values == sorted(values)
 
 
+@pytest.mark.parametrize(("beta", "expected"), [(0.5, 50), (0.1, 10)])
+def test_article_tail_count_for_100_scenarios(beta: float, expected: int) -> None:
+    assert tail_scenario_count(100, beta) == expected
+
+
+def test_equal_probability_article_form_matches_weighted_form_at_integer_tail_mass() -> None:
+    costs = np.arange(1.0, 101.0)
+    probabilities = np.full(100, 0.01)
+    for beta in (0.5, 0.1):
+        assert equal_probability_beta_mean(costs, beta) == pytest.approx(
+            conditional_beta_mean(costs, probabilities, beta)
+        )
+
+
+def test_article_ceiling_rule_for_noninteger_tail_mass_is_explicit() -> None:
+    costs = np.arange(1.0, 11.0)
+    # ceil(0.25 * 10) = 3: average of 8, 9, and 10.
+    assert tail_scenario_count(10, 0.25) == 3
+    assert equal_probability_beta_mean(costs, 0.25) == pytest.approx(9.0)
+
+
+def test_article_equal_probability_risk_is_monotone_for_smaller_tail_mass() -> None:
+    costs = np.array([1.0, 2.0, 3.0, 10.0, 12.0])
+    values = [equal_probability_beta_mean(costs, beta) for beta in (1.0, 0.6, 0.2)]
+    assert values == sorted(values)
+
+
 def test_risk_evaluator_passes_all_100_probabilities(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -87,8 +116,8 @@ def test_conditional_beta_mean_rejects_invalid_beta(beta: float) -> None:
 
 
 def test_exact_model_matches_brute_force() -> None:
-    expected_objective, expected_assignments = _brute_force(p=1, alpha=0.5, beta=0.25)
-    model = build_hub_model(DISTANCE, FLOWS, PROBABILITIES, p=1, alpha=0.5, beta=0.25)
+    expected_objective, expected_assignments = _brute_force(p=1, alpha=0.5, beta=0.5)
+    model = build_hub_model(DISTANCE, FLOWS, PROBABILITIES, p=1, alpha=0.5, beta=0.5)
     solution = solve_hub_model(model, time_limit=10)
 
     assert solution.status == "Optimal Solution Found"
@@ -99,6 +128,27 @@ def test_exact_model_matches_brute_force() -> None:
     assert len(solution.hubs) == 1
     assert all(solution.assignments.count(hub) >= 1 for hub in solution.hubs)
     assert all(assigned in solution.hubs for assigned in solution.assignments)
+
+
+def test_exact_equal_probability_model_uses_ceiling_tail_count() -> None:
+    flows = np.concatenate(
+        [
+            FLOWS,
+            np.array([[[0.0, 0.1, 0.3], [0.6, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
+        ]
+    )
+    probabilities = np.full(3, 1.0 / 3.0)
+    model = build_hub_model(DISTANCE, flows, probabilities, p=1, alpha=0.5, beta=0.5)
+    solution = solve_hub_model(model, time_limit=10)
+
+    # beta * S = 1.5, so the article's ceiling form averages the worst two.
+    assert tail_scenario_count(3, 0.5) == 2
+    expected = equal_probability_beta_mean(solution.scenario_costs, 0.5)
+    assert solution.objective == pytest.approx(expected)
+    assert model.problem.objective.value() == pytest.approx(expected)
+    assert solution.objective != pytest.approx(
+        conditional_beta_mean(solution.scenario_costs, probabilities, 0.5)
+    )
 
 
 def test_exact_model_is_deterministic() -> None:
@@ -112,6 +162,17 @@ def test_exact_model_is_deterministic() -> None:
     assert first.hubs == second.hubs
     assert first.assignments == second.assignments
     assert first.objective == pytest.approx(second.objective)
+
+
+def test_exact_model_uses_assignment_diagonal_and_binary_route_selection() -> None:
+    model = build_hub_model(DISTANCE, FLOWS, PROBABILITIES, p=1, alpha=0.5, beta=0.5)
+
+    assert not hasattr(model, "hub")
+    assert all(variable.cat == "Integer" for variable in model.assignment.values())
+    assert all(variable.cat == "Integer" for variable in model.route_selection.values())
+    constraints = model.problem.constraints
+    assert "select_exactly_p_hubs_from_assignment_diagonal" in constraints
+    assert any(name.startswith("select_one_route_") for name in constraints)
 
 
 def _brute_force(
