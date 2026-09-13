@@ -133,12 +133,13 @@ def run_full_paired_experiment(config: PairedGVNSConfig, *, data_root="data/raw"
         scores, identity = load_rank_scores(d, demand, ranker_checkpoint)
     cbs = solve_cbs(d, demand, scenarios.flows, scenarios.probabilities, config.p, config.alpha, config.beta, max_evaluations=config.max_evaluations, method="cbs")
     dlcbs = solve_dl_cbs(d, demand, scenarios.flows, scenarios.probabilities, config.p, config.alpha, config.beta, scores=scores, max_evaluations=config.max_evaluations)
-    extra = []
-    if d.shape[0] <= 6:
-        br = solve_benders(d, scenarios.flows, scenarios.probabilities, config.p, config.alpha, config.beta, max_iterations=config.max_iterations, time_limit=config.time_limit)
-        extra.append(br.to_dict())
-    else:
-        extra.append({"method":"benders", "status":"not_practical", "proven_optimal":False, "objective":None})
+    # Benders uses the same immutable scenarios.  Its bound-producing master
+    # has an iteration/time budget rather than the heuristic evaluation budget.
+    br = solve_benders(
+        d, scenarios.flows, scenarios.probabilities, config.p, config.alpha,
+        config.beta, max_iterations=config.max_iterations, time_limit=config.time_limit,
+    )
+    extra = [br.to_dict()]
     return [baseline.to_dict(), guided.to_dict(), {**cbs, "candidate": None, "hubs": list(cbs["candidate"].hubs), "assignments": list(cbs["candidate"].assignments)}, {**dlcbs, "candidate": None, "hubs": list(dlcbs["candidate"].hubs), "assignments": list(dlcbs["candidate"].assignments)}, *extra]
 
 

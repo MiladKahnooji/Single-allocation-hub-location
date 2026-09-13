@@ -404,7 +404,7 @@ def build_benders_ground_truth_feature_data(
     primary_p, primary_alpha, primary_beta = target_grid[0]
     data = build_hub_feature_data(
         d, w, p=primary_p, alpha=primary_alpha, beta=primary_beta,
-        seed=seed, label_method="exact", target_p_values=(primary_p,),
+        seed=seed, label_method="heuristic", target_p_values=(primary_p,),
         target_alpha_values=(primary_alpha,),
     )
     normalized = w / w.sum()
