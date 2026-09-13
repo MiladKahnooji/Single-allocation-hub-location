@@ -84,10 +84,11 @@ At each iteration solve the master, solve all scenario LPs, update `UB` with
 the shared evaluator/risk function, and add violated cuts. `LB` is the master
 objective; stop only when `UB-LB <= max(abs_tol, rel_tol*max(1,|UB|))` and all
 solves are optimal. Record iterations, cuts, LP statuses, bounds and gap. A
-time/iteration limit produces `time_limited` and `proven_optimal=false`; never
-claim optimality without solver proof. Use PuLP/CBC only. Sparse positive OD
-storage and deterministic ordering are required; a node/memory guard may
-decline impractical AP runs rather than silently approximate.
+time/iteration limit returns its feasible incumbent, the best available master
+lower bound and `proven_optimal=false`; never claim optimality without solver
+proof. Use PuLP/CBC only. The implementation accepts CAB/AP dimensions, but
+their Benders runs must be explicitly bounded; a limit never silently changes
+to a heuristic.
 
 ## 5. Ground-truth hub targets
 

@@ -379,6 +379,49 @@ def generate_synthetic_hub_data(
     )
 
 
+def build_benders_ground_truth_feature_data(
+    distance: np.ndarray,
+    demand: np.ndarray,
+    *,
+    target_grid: tuple[tuple[int, float, float], ...],
+    seed: int = 0,
+    max_iterations: int = 100,
+) -> HubFeatureData:
+    """Build a tiny synthetic-training sample with certified Benders targets.
+
+    This deliberately supports only the computationally feasible small target
+    generation regime.  Non-converged runs remain ``bounded_incumbent`` in the
+    metadata and are never advertised as exact labels.
+    """
+    from .benders import generate_benders_hub_scores
+
+    d = np.asarray(distance, float); w = np.asarray(demand, float)
+    n = d.shape[0]
+    if n > 6:
+        raise ValueError("Benders ground-truth targets are limited to small certified instances")
+    if not target_grid:
+        raise ValueError("target_grid must not be empty")
+    primary_p, primary_alpha, primary_beta = target_grid[0]
+    data = build_hub_feature_data(
+        d, w, p=primary_p, alpha=primary_alpha, beta=primary_beta,
+        seed=seed, label_method="exact", target_p_values=(primary_p,),
+        target_alpha_values=(primary_alpha,),
+    )
+    normalized = w / w.sum()
+    grid = tuple({"p": p, "alpha": alpha, "beta": beta, "seed": seed + index}
+                 for index, (p, alpha, beta) in enumerate(target_grid))
+    scores, provenance = generate_benders_hub_scores(
+        d, normalized[None, :, :], np.ones(1), grid, max_iterations=max_iterations
+    )
+    primary = provenance["target_runs"][0]
+    labels = np.zeros(n, dtype=np.int8)
+    labels[list(primary["hubs"])] = 1
+    return replace(data, hub_labels=labels, hub_scores=scores,
+                   metadata={**data.metadata, **provenance, "target_method": "benders",
+                             "label_method": "benders", "label_status": primary["status"],
+                             "labels_proven_optimal": bool(primary["proven_optimal"])})
+
+
 def _solve_labels(
     distance: np.ndarray,
     scenario_flows: np.ndarray,

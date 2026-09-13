@@ -19,6 +19,7 @@ from .solution import HubSolution, solve_hub_model
 from .training_data import (
     HubFeatureData,
     build_graphs,
+    build_benders_ground_truth_feature_data,
     build_hub_feature_data,
     build_node_features,
     classical_mds,
@@ -42,6 +43,7 @@ __all__ = [
     "build_hub_model",
     "build_graphs",
     "build_hub_feature_data",
+    "build_benders_ground_truth_feature_data",
     "build_node_features",
     "classical_mds",
     "conditional_beta_mean",
